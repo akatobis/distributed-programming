@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "dgSpecHash": "XOQ96VYbyHYtld/BeSpSX/PcoDdTJJgcfOsYB11XJzPYI1PN9xbOZXXEnwknlxb6Rkdy8ATiFp7TCvrqxDCBNw==",
+  "success": true,
+  "projectFilePath": "C:\\volgatech\\rp\\Valuator\\Valuator\\Valuator.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\lelus\\.nuget\\packages\\nettopologysuite\\2.5.0\\nettopologysuite.2.5.0.nupkg.sha512",
+    "C:\\Users\\lelus\\.nuget\\packages\\nredisstack\\0.11.0\\nredisstack.0.11.0.nupkg.sha512",
+    "C:\\Users\\lelus\\.nuget\\packages\\pipelines.sockets.unofficial\\2.2.8\\pipelines.sockets.unofficial.2.2.8.nupkg.sha512",
+    "C:\\Users\\lelus\\.nuget\\packages\\stackexchange.redis\\2.6.122\\stackexchange.redis.2.6.122.nupkg.sha512",
+    "C:\\Users\\lelus\\.nuget\\packages\\system.io.pipelines\\5.0.1\\system.io.pipelines.5.0.1.nupkg.sha512",
+    "C:\\Users\\lelus\\.nuget\\packages\\system.memory\\4.5.4\\system.memory.4.5.4.nupkg.sha512"
+  ],
+  "logs": []
+}
