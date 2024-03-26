@@ -28,10 +28,6 @@ public class IndexModel : PageModel
 
     private double CalcRang(string text)
     {
-        if (text == null)
-        {
-            return 0;
-        }
         return text.Count(c => !char.IsLetter(c)) / (double)text.Length;
     }
 
@@ -45,6 +41,8 @@ public class IndexModel : PageModel
 
     public IActionResult OnPost(string text)
     {
+        if (string.IsNullOrEmpty(text)) return null;
+        
         _logger.LogDebug(text);
 
         string id = Guid.NewGuid().ToString();
