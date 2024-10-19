@@ -26,8 +26,15 @@ public class SummaryModel : PageModel
     public void OnGet(string id)
     {
         _logger.LogDebug(id);
+        
+        string? region = _db.StringGet(id);
+        if (region == null) return;
+        string? redisConnection = Environment.GetEnvironmentVariable($"DB_{region}");
+        if (redisConnection == null) return;
+        IDatabase regionDb = ConnectionMultiplexer.Connect(ConfigurationOptions.Parse(redisConnection)).GetDatabase();
 
-        Rank = (double)_db.StringGet("RANK-" + id);
-        Similarity = (double)_db.StringGet("SIMILARITY-" + id);
+
+        Rank = (double)regionDb.StringGet("RANK-" + id);
+        Similarity = (double)regionDb.StringGet("SIMILARITY-" + id);
     }
 }

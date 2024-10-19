@@ -52,15 +52,15 @@ public class IndexModel : PageModel
 
     }
 
-    private int CalcSimilarity(string id, string text)
+    private int CalcSimilarity(string id, string text, IDatabase db)
     {
-        var keys = _redis.GetServer(_redis.GetEndPoints().First()).Keys();
+        var keys = db.Multiplexer.GetServer(db.Multiplexer.GetEndPoints().First()).Keys();
         var keysSimilarity = keys.Where(_ => _.ToString().StartsWith(BeginTextKey));
-        var isSimilarity = keysSimilarity.Any(_ => _db.StringGet(_.ToString()) == text);
+        var isSimilarity = keysSimilarity.Any(_ => db.StringGet(_.ToString()) == text);
         return isSimilarity ? 1 : 0;
     }
 
-    public IActionResult OnPost(string text)
+    public IActionResult OnPost(string text, string region)
     {
         if (string.IsNullOrEmpty(text))
         {
@@ -68,24 +68,31 @@ public class IndexModel : PageModel
         }
         
         _logger.LogDebug(text);
-
         var id = Guid.NewGuid().ToString();
+        Console.WriteLine($"LOOKUP: {id}, {region}.");
+        _db.StringSet(id, region);
+        
+        string? redisConnection = Environment.GetEnvironmentVariable($"DB_{region}");
+        if (redisConnection == null) return Redirect($"/");
+        IDatabase regionDb = ConnectionMultiplexer.Connect(ConfigurationOptions.Parse(redisConnection)).GetDatabase();
 
+        //TEXT
+        var textKey = "TEXT-" + id;
+        regionDb.StringSet(textKey, text);
+
+        //RANK
         var messageObject = new
         {
             Id = id,
         };
-        
-        var textKey = BeginTextKey + id;
-        _db.StringSet(textKey, text);
-        
         var textMessage = JsonConvert.SerializeObject(messageObject);
         var data = Encoding.UTF8.GetBytes(textMessage);
         _natsConnection.Publish("text.processing", data);
 
+        //SIMILARITY
         var similarityKey = "SIMILARITY-" + id;
-        var similarity = CalcSimilarity(id, text);
-        _db.StringSet(similarityKey, similarity.ToString());
+        var similarity = CalcSimilarity(id, text, regionDb);
+        regionDb.StringSet(similarityKey, similarity.ToString());
         
         var similarityMessageObject = new MessageModel()
         {
