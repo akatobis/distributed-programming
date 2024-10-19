@@ -1,0 +1,6 @@
+start cmd /k "echo 4 | dotnet run 1234 localhost 1235 true"
+start cmd /k "echo 17 | dotnet run 1235 localhost 1236"
+start cmd /k "echo -5 | dotnet run 1236 localhost 1237"
+start cmd /k "echo 32 | dotnet run 1237 localhost 1238"
+start cmd /k "echo 4 | dotnet run 1238 localhost 1239"
+start cmd /k "echo 5 | dotnet run 1239 localhost 1234"
