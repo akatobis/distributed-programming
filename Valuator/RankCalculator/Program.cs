@@ -4,58 +4,71 @@ using NATS.Client;
 using Newtonsoft.Json;
 using StackExchange.Redis;
 
-public class MessageModel
+public class ReceiveMessageModel
 {
-    public string Id { get; set; }
+    public string? Id { get; set; }
+}
+
+public class SendMessageModel
+{
+    public string? Id { get; set; }
+    public double Data { get; set; }
 }
 
 class RankCalculator
 {
-    private static readonly IConnectionMultiplexer _redis = ConnectionMultiplexer.Connect("127.0.0.1:6379");
-    private static readonly IConnection _natsConnection = new ConnectionFactory().CreateConnection("127.0.0.1:4222");
-    
+    private static readonly IConnectionMultiplexer Redis = ConnectionMultiplexer.Connect("127.0.0.1:6379");
+    private static readonly IConnection NatsConnection = new ConnectionFactory().CreateConnection("127.0.0.1:4222");
+
+    private const string Subject = "RankCalculated";
+
     public static void Main()
     {
-        var s = _natsConnection.SubscribeAsync("text.processing", (sender, args) =>
+        var s = NatsConnection.SubscribeAsync("text.processing", (sender, args) =>
         {
-            byte[] data = args.Message.Data;
-            IDatabase db = _redis.GetDatabase();
+            var data = args.Message.Data;
+            var db = Redis.GetDatabase();
 
-            var messageObject = JsonConvert.DeserializeObject<MessageModel>(Encoding.UTF8.GetString(data));
+            var receiveMessageObject = JsonConvert.DeserializeObject<ReceiveMessageModel>(Encoding.UTF8.GetString(data))!;
 
-            string id = messageObject.Id;
-            string text = db.StringGet("TEXT-" + id);
+            var id = receiveMessageObject.Id;
+            var text = db.StringGet("TEXT-" + id)!;
             
-            string rankKey = "RANK-" + id;
-            double rank = CalculateRank(text);
+            var rankKey = "RANK-" + id;
+            var rank = CalculateRank(text);
             db.StringSet(rankKey, rank.ToString());
+
+            var sendMessageObject = new SendMessageModel()
+            {
+                Id = $"TEXT-{id}",
+                Data = rank
+            };
+
+            var sendMessageString = JsonConvert.SerializeObject(sendMessageObject);
+            var sendData = Encoding.UTF8.GetBytes(sendMessageString);
+            
+            NatsConnection.Publish(Subject, sendData);
         });
 
         s.Start();
 
+        Console.WriteLine("RankCalculator running");
         Console.WriteLine("Press Enter to exit");
         Console.ReadLine();
 
         s.Unsubscribe();
 
-        _natsConnection.Drain();
-        _natsConnection.Close();
+        NatsConnection.Drain();
+        NatsConnection.Close();
     }
     
     static double CalculateRank(string? text)
     {
         if (text == null) return 0;
         
-        int numOfLetters = 0;
-        foreach (char ch in text)
-        {
-            if (Char.IsLetter(ch))
-            {
-                numOfLetters++;
-            }
-        }
+        var numOfLetters = text.Count(ch => Char.IsLetter(ch));
 
-        double rank = (double)(text.Length - numOfLetters) / text.Length;
+        var rank = (double)(text.Length - numOfLetters) / text.Length;
 
         return rank;
     }

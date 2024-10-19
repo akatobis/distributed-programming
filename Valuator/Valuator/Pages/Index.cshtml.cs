@@ -10,6 +10,12 @@ using Newtonsoft.Json;
 
 namespace Valuator.Pages;
 
+public class MessageModel
+{
+    public string? Id { get; set; }
+    public double Data { get; set; }
+}
+
 public class IndexModel : PageModel
 {
     private IDatabase _db;
@@ -19,6 +25,7 @@ public class IndexModel : PageModel
     
     private const string NatsUrlConnection = "127.0.0.1:4222";
 
+    private const string SimilarityCalculatedSubject = "SimilarityCalculated";
     private const string BeginTextKey = "TEXT-";
 	
     public IndexModel(ILogger<IndexModel> logger, IConnectionMultiplexer redis)
@@ -49,7 +56,7 @@ public class IndexModel : PageModel
     {
         var keys = _redis.GetServer(_redis.GetEndPoints().First()).Keys();
         var keysSimilarity = keys.Where(_ => _.ToString().StartsWith(BeginTextKey));
-        var isSimilarity = keysSimilarity.Any(_ => _ != "TEXT-" + id && _db.StringGet(_.ToString()) == text);
+        var isSimilarity = keysSimilarity.Any(_ => _db.StringGet(_.ToString()) == text);
         return isSimilarity ? 1 : 0;
     }
 
@@ -62,23 +69,32 @@ public class IndexModel : PageModel
         
         _logger.LogDebug(text);
 
-        string id = Guid.NewGuid().ToString();
+        var id = Guid.NewGuid().ToString();
 
         var messageObject = new
         {
             Id = id,
         };
         
-        string textKey = BeginTextKey + id;
+        var textKey = BeginTextKey + id;
         _db.StringSet(textKey, text);
         
-        string textMessage = JsonConvert.SerializeObject(messageObject);
-        byte[] data = Encoding.UTF8.GetBytes(textMessage);
+        var textMessage = JsonConvert.SerializeObject(messageObject);
+        var data = Encoding.UTF8.GetBytes(textMessage);
         _natsConnection.Publish("text.processing", data);
 
-        string similarityKey = "SIMILARITY-" + id;
-        double similarity = CalcSimilarity(id, text);
+        var similarityKey = "SIMILARITY-" + id;
+        var similarity = CalcSimilarity(id, text);
         _db.StringSet(similarityKey, similarity.ToString());
+        
+        var similarityMessageObject = new MessageModel()
+        {
+            Id = $"TEXT-{id}",
+            Data = similarity
+        };
+        var similarityMessageString = JsonConvert.SerializeObject(similarityMessageObject);
+        var similarityMessageData = Encoding.UTF8.GetBytes(similarityMessageString);
+        _natsConnection!.Publish(SimilarityCalculatedSubject, similarityMessageData);
 
         return Redirect($"summary?id={id}");
     }
