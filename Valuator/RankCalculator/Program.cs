@@ -27,16 +27,22 @@ class RankCalculator
         var s = NatsConnection.SubscribeAsync("text.processing", (sender, args) =>
         {
             var data = args.Message.Data;
-            var db = Redis.GetDatabase();
 
             var receiveMessageObject = JsonConvert.DeserializeObject<ReceiveMessageModel>(Encoding.UTF8.GetString(data))!;
 
             var id = receiveMessageObject.Id;
-            var text = db.StringGet("TEXT-" + id)!;
+            var region = Redis.GetDatabase().StringGet(id);
+            
+            var redisConnection = Environment.GetEnvironmentVariable($"DB_{region}");
+            if (redisConnection == null) return;
+            IDatabase regionDb = ConnectionMultiplexer.Connect(ConfigurationOptions.Parse(redisConnection)).GetDatabase();
+
+            var text = regionDb.StringGet("TEXT-" + id)!;
             
             var rankKey = "RANK-" + id;
             var rank = CalculateRank(text);
-            db.StringSet(rankKey, rank.ToString());
+            Console.WriteLine($"LOOKUP: {id}, {region}.");
+            regionDb.StringSet(rankKey, rank.ToString());
 
             var sendMessageObject = new SendMessageModel()
             {
